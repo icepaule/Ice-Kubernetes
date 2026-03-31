@@ -1,0 +1,21 @@
+# Environment files with secrets
+.env
+*.env.local
+
+# K3s config with tokens
+kubeconfig
+k3s.yaml
+node-token
+
+# Backup files (may contain sensitive data)
+backups/
+*.dump
+*.sql
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

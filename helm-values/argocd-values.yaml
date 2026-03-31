@@ -1,0 +1,40 @@
+# ArgoCD Helm Values
+# Docs: https://argo-cd.readthedocs.io/en/stable/
+
+# Server configuration
+server:
+  # Expose via LoadBalancer (MetalLB)
+  service:
+    type: LoadBalancer
+  # Disable TLS on ArgoCD side (handle via Traefik ingress if needed)
+  extraArgs:
+  - --insecure
+
+# Reduce resource usage for homelab
+controller:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
+repoServer:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+redis:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+# Application set controller (for generating apps from templates)
+applicationSet:
+  enabled: true

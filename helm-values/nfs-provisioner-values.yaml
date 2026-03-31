@@ -1,0 +1,19 @@
+# NFS Subdir External Provisioner Helm Values
+# Docs: https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner
+
+nfs:
+  server: <NFS_SERVER>
+  path: <NFS_PATH>
+
+storageClass:
+  name: nfs-synology
+  defaultClass: false
+  reclaimPolicy: Retain
+  archiveOnDelete: true
+  accessModes: ReadWriteMany
+
+# Allow scheduling on control-plane node
+tolerations:
+- key: "node-role.kubernetes.io/control-plane"
+  operator: "Exists"
+  effect: "NoSchedule"

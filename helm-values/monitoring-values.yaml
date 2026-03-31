@@ -1,0 +1,96 @@
+# kube-prometheus-stack Helm Values
+# Docs: https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack
+
+# Grafana
+grafana:
+  enabled: true
+  adminPassword: <CHANGE_ME>
+  service:
+    type: LoadBalancer
+  persistence:
+    enabled: true
+    size: 5Gi
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+      - name: default
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+  dashboards:
+    default:
+      node-exporter-full:
+        gnetId: 1860
+        datasource: Prometheus
+      k8s-cluster:
+        gnetId: 7249
+        datasource: Prometheus
+      docker-containers:
+        gnetId: 893
+        datasource: Prometheus
+
+# Prometheus
+prometheus:
+  prometheusSpec:
+    retention: 30d
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        memory: 4Gi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+
+    # Scrape external Docker hosts (node-exporter + cAdvisor)
+    additionalScrapeConfigs:
+    - job_name: 'external-node-exporter'
+      scrape_interval: 30s
+      static_configs:
+      - targets:
+        - '<DOCKER_HOST_1>:9100'
+        labels:
+          source: external
+          host: synology
+    - job_name: 'external-cadvisor'
+      scrape_interval: 30s
+      static_configs:
+      - targets:
+        - '<DOCKER_HOST_1>:8080'
+        labels:
+          source: external
+          host: synology
+
+# Alertmanager
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+
+# Reduce resource usage for homelab
+kubeStateMetrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true
+
+# Tolerate control-plane taint
+prometheusOperator:
+  tolerations:
+  - key: "node-role.kubernetes.io/control-plane"
+    operator: "Exists"
+    effect: "NoSchedule"

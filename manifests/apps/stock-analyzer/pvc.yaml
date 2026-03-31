@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stock-analyzer-data
+  namespace: apps
+  labels:
+    app.kubernetes.io/name: stock-analyzer
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  # Use default StorageClass (local-path) or specify:
+  # storageClassName: nfs-synology

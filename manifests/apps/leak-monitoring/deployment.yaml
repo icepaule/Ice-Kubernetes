@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: leak-monitoring
+  namespace: apps
+  labels:
+    app.kubernetes.io/name: leak-monitoring
+    app.kubernetes.io/part-of: ice-kubernetes
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: leak-monitoring
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: leak-monitoring
+    spec:
+      containers:
+      - name: leak-monitoring
+        image: ghcr.io/<GITHUB_USER>/ice-leak-monitoring:latest
+        ports:
+        - containerPort: 8080
+          name: http
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            memory: 1Gi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 60
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: leak-monitoring-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: leak-monitoring-data
+  namespace: apps
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: leak-monitoring
+  namespace: apps
+  labels:
+    app.kubernetes.io/name: leak-monitoring
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 8084
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app.kubernetes.io/name: leak-monitoring

@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stock-analyzer
+  namespace: apps
+  labels:
+    app.kubernetes.io/name: stock-analyzer
+    app.kubernetes.io/part-of: ice-kubernetes
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: stock-analyzer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: stock-analyzer
+    spec:
+      containers:
+      - name: stock-analyzer
+        image: ghcr.io/<GITHUB_USER>/stock-analyzer:latest
+        ports:
+        - containerPort: 5000
+          name: http
+        envFrom:
+        - secretRef:
+            name: stock-analyzer-env
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            memory: 1Gi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: stock-analyzer-data

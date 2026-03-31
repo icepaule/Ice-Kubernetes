@@ -1,0 +1,9 @@
+# MetalLB Helm Values
+# Docs: https://metallb.universe.tf/configuration/
+
+# Speaker configuration (L2 mode)
+speaker:
+  tolerations:
+  - key: "node-role.kubernetes.io/control-plane"
+    operator: "Exists"
+    effect: "NoSchedule"
