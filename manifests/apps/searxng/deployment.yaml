@@ -16,12 +16,26 @@ spec:
       labels:
         app.kubernetes.io/name: searxng
     spec:
+      initContainers:
+      - name: copy-settings
+        image: busybox
+        command: ['sh', '-c', 'cp /config/settings.yml /etc/searxng/settings.yml && chmod 666 /etc/searxng/settings.yml']
+        volumeMounts:
+        - name: settings
+          mountPath: /config
+        - name: data
+          mountPath: /etc/searxng
       containers:
       - name: searxng
         image: searxng/searxng:latest
         ports:
         - containerPort: 8080
           name: http
+        env:
+        - name: SEARXNG_BASE_URL
+          value: "http://localhost:8888"
+        - name: SEARXNG_PORT
+          value: "8080"
         volumeMounts:
         - name: data
           mountPath: /etc/searxng
@@ -31,42 +45,10 @@ spec:
             memory: 128Mi
           limits:
             memory: 512Mi
-        readinessProbe:
-          httpGet:
-            path: /healthz
-            port: http
-          initialDelaySeconds: 10
-          periodSeconds: 10
+      enableServiceLinks: false
       volumes:
+      - name: settings
+        configMap:
+          name: searxng-settings
       - name: data
-        persistentVolumeClaim:
-          claimName: searxng-data
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: searxng-data
-  namespace: apps
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: searxng
-  namespace: apps
-  labels:
-    app.kubernetes.io/name: searxng
-spec:
-  type: LoadBalancer
-  ports:
-  - port: 8888
-    targetPort: http
-    protocol: TCP
-    name: http
-  selector:
-    app.kubernetes.io/name: searxng
+        emptyDir: {}

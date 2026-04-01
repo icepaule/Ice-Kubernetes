@@ -18,13 +18,19 @@ spec:
     spec:
       containers:
       - name: leak-monitoring
-        image: ghcr.io/<GITHUB_USER>/ice-leak-monitoring:latest
+        image: 10.10.0.203:5000/ice-leak-monitoring:latest
         ports:
         - containerPort: 8080
           name: http
+        envFrom:
+        - secretRef:
+            name: leak-monitoring-env
+        env:
+        - name: TZ
+          value: Europe/Berlin
         volumeMounts:
         - name: data
-          mountPath: /app/data
+          mountPath: /data
         resources:
           requests:
             cpu: 100m
@@ -37,12 +43,6 @@ spec:
             port: http
           initialDelaySeconds: 30
           periodSeconds: 60
-        readinessProbe:
-          httpGet:
-            path: /
-            port: http
-          initialDelaySeconds: 10
-          periodSeconds: 10
       volumes:
       - name: data
         persistentVolumeClaim:
@@ -54,8 +54,7 @@ metadata:
   name: leak-monitoring-data
   namespace: apps
 spec:
-  accessModes:
-  - ReadWriteOnce
+  accessModes: [ReadWriteOnce]
   resources:
     requests:
       storage: 5Gi
@@ -65,14 +64,10 @@ kind: Service
 metadata:
   name: leak-monitoring
   namespace: apps
-  labels:
-    app.kubernetes.io/name: leak-monitoring
 spec:
   type: LoadBalancer
   ports:
   - port: 8084
     targetPort: http
-    protocol: TCP
-    name: http
   selector:
     app.kubernetes.io/name: leak-monitoring

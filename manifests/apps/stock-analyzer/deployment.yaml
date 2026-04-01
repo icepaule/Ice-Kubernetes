@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: stock-analyzer
-        image: ghcr.io/<GITHUB_USER>/stock-analyzer:latest
+        image: 10.10.0.203:5000/stock-analyzer:latest
         ports:
         - containerPort: 5000
           name: http
