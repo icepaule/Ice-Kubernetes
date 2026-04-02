@@ -81,6 +81,7 @@ See [docs/01-prerequisites.md](docs/01-prerequisites.md) to get started.
 5. [Agent Nodes](docs/05-agent-nodes.md)
 6. [Monitoring](docs/06-monitoring.md)
 7. [GitOps with ArgoCD](docs/07-gitops-argocd.md)
+8. **[Admin Guide](docs/08-admin-guide.md)** - Day-to-day operations, troubleshooting, deploying new apps
 
 ## Directory Structure
 
