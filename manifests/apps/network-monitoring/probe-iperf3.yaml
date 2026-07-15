@@ -1,0 +1,29 @@
+# Blackbox-Style Probe: Prometheus ruft periodisch
+# http://iperf3-exporter:9579/probe?target=10.10.0.210 auf; der Exporter fuehrt
+# dabei live einen echten iperf3-Client-Test gegen den iperf3-server auf ki02
+# aus und liefert das Ergebnis synchron als Metrik zurueck.
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: iperf3-backbone
+  namespace: monitoring
+  labels:
+    release: monitoring
+    app.kubernetes.io/part-of: ice-kubernetes
+spec:
+  jobName: iperf3-backbone
+  interval: 5m
+  scrapeTimeout: 30s
+  prober:
+    url: iperf3-exporter.monitoring.svc.cluster.local:9579
+    path: /probe
+  params:
+  - name: period
+    values: ["5s"]
+  targets:
+    staticConfig:
+      # ki02 (10.10.0.210) - iperf3-server, siehe deployment-iperf3-server.yaml
+      static:
+      - "10.10.0.210"
+      labels:
+        job: iperf3-backbone

@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iperf3-server
+  namespace: monitoring
+  labels:
+    app: iperf3-server
+    app.kubernetes.io/name: iperf3-server
+    app.kubernetes.io/part-of: ice-kubernetes
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iperf3-server
+  template:
+    metadata:
+      labels:
+        app: iperf3-server
+    spec:
+      # fest auf ki02 gepinnt: der iperf3-exporter laeuft auf nuc-ha, damit der
+      # Durchsatz-Test tatsaechlich die Backbone-Strecke nuc-ha<->ki02 misst
+      # (CRS305 <-> sw-az), statt nur node-lokal zu testen.
+      nodeSelector:
+        kubernetes.io/hostname: ki02
+      hostNetwork: true
+      containers:
+      - name: iperf3-server
+        image: networkstatic/iperf3:latest
+        args: ["-s"]
+        ports:
+        - name: iperf3
+          containerPort: 5201
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            memory: 128Mi

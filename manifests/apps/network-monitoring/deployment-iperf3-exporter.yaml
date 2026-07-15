@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iperf3-exporter
+  namespace: monitoring
+  labels:
+    app: iperf3-exporter
+    app.kubernetes.io/name: iperf3-exporter
+    app.kubernetes.io/part-of: ice-kubernetes
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iperf3-exporter
+  template:
+    metadata:
+      labels:
+        app: iperf3-exporter
+    spec:
+      # fest auf nuc-ha gepinnt (Gegenstueck zu iperf3-server auf ki02), siehe
+      # Kommentar dort.
+      nodeSelector:
+        kubernetes.io/hostname: nuc-ha
+      hostNetwork: true
+      containers:
+      - name: iperf3-exporter
+        image: ghcr.io/edgard/iperf3_exporter:1.3.1
+        ports:
+        - name: metrics
+          containerPort: 9579
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iperf3-exporter
+  namespace: monitoring
+  labels:
+    app: iperf3-exporter
+    app.kubernetes.io/part-of: ice-kubernetes
+spec:
+  selector:
+    app: iperf3-exporter
+  ports:
+  - name: metrics
+    port: 9579
+    targetPort: 9579

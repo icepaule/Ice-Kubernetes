@@ -1,0 +1,36 @@
+# IP -> Hostname Mapping (fuer Grafana-Dashboard, da smokeping_prober nur die
+# rohe IP als "host"-Label exportiert):
+#   10.10.0.2      pfSense (Router/Firewall)
+#   10.10.12.1     USG-Pro-4 (IoT/Bad!Net-Gateway)
+#   192.168.178.9  CRS305 (Mikrotik-Backbone-Switch)
+#   10.10.0.216    Cisco WiFi-Office (WS-C3560CG)
+#   10.10.0.215    Cisco WiFi-WZ (WS-C3560CG)
+#   10.10.0.100    NUC-HA (K3s control-plane)
+#   10.10.0.210    ki02 (K3s worker, Z440)
+#   10.10.0.186    synnas (Synology NAS)
+#   192.168.178.65 prox2 (Proxmox Host)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: smokeping-prober-targets
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: smokeping-prober
+    app.kubernetes.io/part-of: ice-kubernetes
+data:
+  targets.yml: |
+    ---
+    targets:
+    - hosts:
+      - 10.10.0.2
+      - 10.10.12.1
+      - 192.168.178.9
+      - 10.10.0.216
+      - 10.10.0.215
+      - 10.10.0.100
+      - 10.10.0.210
+      - 10.10.0.186
+      - 192.168.178.65
+      interval: 5s
+      network: ip4
+      protocol: icmp

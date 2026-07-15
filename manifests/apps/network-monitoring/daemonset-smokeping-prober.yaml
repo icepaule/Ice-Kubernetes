@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: smokeping-prober
+  namespace: monitoring
+  labels:
+    app: smokeping-prober
+    app.kubernetes.io/name: smokeping-prober
+    app.kubernetes.io/part-of: ice-kubernetes
+spec:
+  selector:
+    matchLabels:
+      app: smokeping-prober
+  template:
+    metadata:
+      labels:
+        app: smokeping-prober
+    spec:
+      # hostNetwork, damit die gemessene Latenz die echte Backbone-Strecke
+      # widerspiegelt statt durch den CNI-Overlay verfaelscht zu werden.
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: smokeping-prober
+        image: quay.io/superq/smokeping-prober:v0.12.0
+        args:
+        - --config.file=/config/targets.yml
+        - --web.listen-address=:9374
+        ports:
+        - name: metrics
+          containerPort: 9374
+        securityContext:
+          capabilities:
+            add: ["NET_RAW"]
+        volumeMounts:
+        - name: config
+          mountPath: /config
+          readOnly: true
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            memory: 64Mi
+      volumes:
+      - name: config
+        configMap:
+          name: smokeping-prober-targets

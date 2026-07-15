@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: smokeping-prober
+  namespace: monitoring
+  labels:
+    release: monitoring
+    app.kubernetes.io/part-of: ice-kubernetes
+spec:
+  selector:
+    matchLabels:
+      app: smokeping-prober
+  podMetricsEndpoints:
+  - port: metrics
+    interval: 15s
