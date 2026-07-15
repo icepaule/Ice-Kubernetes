@@ -140,6 +140,34 @@ additionalPrometheusRulesMap:
           severity: warning
 ```
 
+## Network Backbone Monitoring (smokeping_prober + iperf3)
+
+App: `manifests/apps/network-monitoring/` (ArgoCD app `network-monitoring`, namespace `monitoring`).
+
+Latency/loss trending and real throughput testing for the physical network backbone
+(switches, router/firewall, key hosts) - independent of whether those hosts run K8s workloads.
+
+| Component | What | Where |
+|-----------|------|-------|
+| `smokeping-prober` (DaemonSet) | ICMP ping loop (5s interval) against 9 backbone targets (CRS305, sw-az, sw-keller-Cisco-Switches, pfSense, USG, NUC-HA, ki02, synnas, prox2), exports Prometheus histograms | Both K3s nodes, `hostNetwork: true` |
+| `iperf3-server` (Deployment) | iperf3 server, permanently listening | Pinned to `ki02` |
+| `iperf3-exporter` (Deployment) | Blackbox-style exporter (`edgard/iperf3_exporter`); Prometheus calls `/probe?target=<ip>`, which triggers a real iperf3 client run and returns the result synchronously | Pinned to `nuc-ha` (so the test traffic actually crosses the CRS305 backbone instead of staying node-local) |
+
+Both are wired into Prometheus via Prometheus-Operator CRDs (`PodMonitor` for smokeping,
+`Probe` for iperf3 - no manual `scrape_configs` needed) and ship their own Grafana
+dashboards ("Smokeping", "iperf3 Backbone Throughput") auto-loaded via the existing
+`grafana_dashboard: "1"` ConfigMap-sidecar convention.
+
+`hostNetwork: true` is deliberate on all three workloads: it measures the real physical
+link, not the CNI overlay. `smokeping_prober` needs `NET_RAW` for raw ICMP sockets. The
+iperf3 probe interval is 5 minutes (it briefly saturates the link, ~930 Mbit/s on a
+1GbE backbone) - do not lower it without considering the bandwidth impact.
+
+To add more targets: edit `configmap-smokeping-targets.yaml` (plain IP, no DNS
+dependency on purpose - the monitor shouldn't rely on the thing it might need to
+alert about) or `probe-iperf3.yaml` (needs a matching `iperf3-server` on the new
+target host).
+
 ## Next Step
 
 Proceed to [07 - GitOps with ArgoCD](07-gitops-argocd.md).
