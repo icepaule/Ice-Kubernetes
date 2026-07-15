@@ -168,6 +168,46 @@ dependency on purpose - the monitor shouldn't rely on the thing it might need to
 alert about) or `probe-iperf3.yaml` (needs a matching `iperf3-server` on the new
 target host).
 
+## Centralized Logging (Loki + Grafana Alloy)
+
+Installed directly via Helm (like the rest of the `monitoring` stack, not GitOps-managed), values in
+`helm-values/loki-values.yaml` and `helm-values/alloy-values.yaml`.
+
+```bash
+helm repo add grafana-community https://grafana-community.github.io/helm-charts
+helm repo add grafana https://grafana.github.io/helm-charts
+helm install loki grafana-community/loki --version 18.5.0 -n monitoring -f helm-values/loki-values.yaml
+helm install alloy grafana/alloy --version 1.10.1 -n monitoring -f helm-values/alloy-values.yaml
+kubectl apply -f manifests/core/monitoring/grafana-datasource-loki.yaml
+```
+
+**Note on naming:** the original plan was "Loki + Promtail", but Promtail reached EOL on
+2026-03-02 (no more updates). Used **Grafana Alloy** instead - it's the actively maintained
+successor and the officially recommended replacement.
+
+- **Loki** (`grafana-community/loki`, chart replaces the deprecated `grafana/loki` chart as of
+  March 2026): single-binary/`Monolithic` mode, filesystem storage, 14-day retention, pinned to
+  `nuc-ha` via nodeSelector (local-path PV, and keeps log compaction off ki02's GPU/CPU budget).
+  Memcached chunks/results caching disabled - unnecessary at single-node scale.
+- **Alloy** (DaemonSet, both nodes): ships two log sources into Loki via a single hand-written
+  config (`alloy.configMap.content` in the values file, Alloy-native "river" syntax):
+  1. **Kubernetes pod logs** - `discovery.kubernetes` + `loki.source.kubernetes` (Kubernetes API,
+     no hostPath needed), relabeled to clean `namespace`/`pod`/`container`/`node` labels.
+  2. **Standalone Docker containers** - `discovery.docker` + `loki.source.docker` against
+     `/var/run/docker.sock` (mounted via `controller.volumes.extra` + `alloy.mounts.extra`).
+     Covers ki02's Docker fleet (Ollama/Open-WebUI/SearXNG/Qdrant/deal-hunter/...) **and**
+     NUC-HA's (Home Assistant Supervised + all its addons, Portainer, etc.) - both nodes run
+     Docker outside K3s, both get covered by the same mechanism.
+- Grafana datasource "Loki" auto-provisioned via the existing k8s-sidecar convention
+  (`grafana_datasource: "1"` ConfigMap label).
+
+Query in Grafana Explore, e.g. `{container="homeassistant"}` or `{namespace="apps", pod=~"searxng.*"}`.
+
+**Gotcha:** on first attach, Alloy tails Docker's *entire* existing json-log file from the start,
+so long-running containers can produce a burst of `"entry ... has timestamp too old"` 400s against
+Loki's 7-day ingestion window - harmless (just the unrecoverable old backlog being dropped), stops
+once it catches up to the present.
+
 ## Next Step
 
 Proceed to [07 - GitOps with ArgoCD](07-gitops-argocd.md).

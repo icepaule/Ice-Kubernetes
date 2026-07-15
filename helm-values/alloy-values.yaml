@@ -1,0 +1,95 @@
+controller:
+  type: daemonset
+  volumes:
+    extra:
+      - name: dockersock
+        hostPath:
+          path: /var/run/docker.sock
+          type: Socket
+
+alloy:
+  configMap:
+    create: true
+    content: |-
+      // ---------------------------------------------------------------------------
+      // Kubernetes Pod-Logs (beide K3s-Nodes, ueber die Kubernetes-API - kein
+      // hostPath-Mount noetig)
+      // ---------------------------------------------------------------------------
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      discovery.relabel "pods" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+      }
+
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pods.output
+        forward_to = [loki.write.default.receiver]
+      }
+
+      // ---------------------------------------------------------------------------
+      // Standalone Docker-Container (NUC-HA: Home Assistant Supervised + Addons;
+      // ki02: Ollama/Open-WebUI/SearXNG/Qdrant/deal-hunter etc.) - via Docker-Socket
+      // pro Node, dadurch automatisch mit Container-Namen statt Hash-IDs gelabelt.
+      // ---------------------------------------------------------------------------
+      discovery.docker "containers" {
+        host = "unix:///var/run/docker.sock"
+      }
+
+      discovery.relabel "containers" {
+        targets = discovery.docker.containers.targets
+
+        rule {
+          source_labels = ["__meta_docker_container_name"]
+          regex         = "^/(.*)$"
+          target_label  = "container"
+        }
+      }
+
+      loki.source.docker "containers" {
+        host       = "unix:///var/run/docker.sock"
+        targets    = discovery.relabel.containers.output
+        labels     = {source = "docker"}
+        forward_to = [loki.write.default.receiver]
+      }
+
+      // ---------------------------------------------------------------------------
+      // Loki-Push-Ziel
+      // ---------------------------------------------------------------------------
+      loki.write "default" {
+        endpoint {
+          url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+        }
+      }
+  mounts:
+    varlog: false
+    dockercontainers: false
+    extra:
+      - name: dockersock
+        mountPath: /var/run/docker.sock
+        readOnly: true
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
