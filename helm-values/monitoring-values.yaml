@@ -10,6 +10,51 @@ grafana:
   persistence:
     enabled: true
     size: 5Gi
+  # Secrets via env-var expansion (chart assertNoLeakedSecrets forbids plaintext in grafana.ini).
+  # Replace placeholders at deploy time; real values live only in the running release.
+  env:
+    GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: <OIDC_CLIENT_SECRET>
+    GF_SMTP_PASSWORD: <SMTP_PASSWORD>
+  # Pod cannot use split-horizon DNS -> pin internal Axigen IP for SMTP.
+  hostAliases:
+    - ip: 10.1.1.11
+      hostnames:
+        - mail.mpauli.de
+  grafana.ini:
+    server:
+      root_url: https://grafana.mpauli.de
+    auth:
+      disable_login_form: true
+      oauth_allow_insecure_email_lookup: true
+    auth.anonymous:
+      enabled: true
+      hide_version: true
+      org_name: Guest
+      org_role: Viewer
+    auth.generic_oauth:
+      enabled: true
+      name: Authentik
+      client_id: 513de4970376be7973851563957f2a75
+      client_secret: $__env{GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET}
+      scopes: openid email profile
+      auth_url: https://auth.mpauli.de/application/o/authorize/
+      token_url: https://auth.mpauli.de/application/o/token/
+      api_url: https://auth.mpauli.de/application/o/userinfo/
+      login_attribute_path: preferred_username
+      email_attribute_path: email
+      name_attribute_path: name
+      allow_sign_up: true
+      allow_assign_grafana_admin: true
+      use_pkce: true
+      role_attribute_path: preferred_username == 'mpauli' && 'GrafanaAdmin' || 'Viewer'
+    smtp:
+      enabled: true
+      host: mail.mpauli.de:465
+      user: info@mpauli.de
+      password: $__env{GF_SMTP_PASSWORD}
+      from_address: info@mpauli.de
+      from_name: Grafana
+      skip_verify: false
   dashboardProviders:
     dashboardproviders.yaml:
       apiVersion: 1
