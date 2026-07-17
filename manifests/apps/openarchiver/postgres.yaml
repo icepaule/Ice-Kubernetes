@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oa-postgres
+  namespace: apps
+  labels:
+    app.kubernetes.io/name: oa-postgres
+    app.kubernetes.io/part-of: openarchiver
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: oa-postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: oa-postgres
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: nuc-ha
+      enableServiceLinks: false
+      containers:
+      - name: postgres
+        image: postgres:17-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: open_archive
+        - name: POSTGRES_USER
+          value: archiver
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: openarchiver-env
+              key: POSTGRES_PASSWORD
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "archiver"]
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: oa-pgdata
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oa-postgres
+  namespace: apps
+spec:
+  selector:
+    app.kubernetes.io/name: oa-postgres
+  ports:
+  - port: 5432
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: oa-pgdata
+  namespace: apps
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

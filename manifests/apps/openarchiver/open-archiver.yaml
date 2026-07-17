@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: open-archiver
+  namespace: apps
+  labels:
+    app.kubernetes.io/name: open-archiver
+    app.kubernetes.io/part-of: openarchiver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: open-archiver
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: open-archiver
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: nuc-ha
+      enableServiceLinks: false
+      # See README "Self-referencing SSR fetch" — the app calls its own
+      # public URL server-side on every page load. Without this override
+      # that call round-trips through pfSense/Authentik/LoadBalancer and
+      # back to itself; under load it can wedge the whole process.
+      hostAliases:
+      - ip: 10.43.38.127 # open-archiver Service ClusterIP, see open-archiver Service below
+        hostnames:
+        - open-archiver.mpauli.de
+      containers:
+      - name: open-archiver
+        # Pinned to a known-good digest, NOT :latest. See README
+        # "Broken v0.5.1 migration" — imagePullPolicy: Always silently
+        # pulled a newer image with a migration that hangs forever.
+        image: docker.io/logiclabshq/open-archiver@sha256:e57f6ad9953aa70b1d9e900d78c0b74517e102aeacb3af8f4836479926422189
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: frontend
+          containerPort: 3000
+        - name: backend
+          containerPort: 4000
+        env:
+        - name: DATABASE_URL
+          value: postgresql://archiver:$(POSTGRES_PASSWORD)@oa-postgres:5432/open_archive
+        - name: MEILI_HOST
+          value: http://oa-meilisearch:7700
+        - name: REDIS_HOST
+          value: oa-valkey
+        - name: TIKA_URL
+          value: http://oa-tika:9998
+        - name: NODE_TLS_REJECT_UNAUTHORIZED
+          value: "0"
+        envFrom:
+        - secretRef:
+            name: openarchiver-env
+        volumeMounts:
+        - name: storage
+          mountPath: /var/data/open-archiver
+        - name: proton-cert
+          mountPath: /etc/ssl/certs/proton-tls.crt
+          subPath: proton-tls.crt
+          readOnly: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            memory: 1536Mi
+        # Cold start reinstalls all ~631 npm packages every time (no
+        # persisted node_modules) — can take well over 30s. The
+        # startupProbe budget must stay generous or liveness/readiness
+        # will kill the pod mid-install and crash-loop it forever.
+        startupProbe:
+          httpGet:
+            path: /signin
+            port: 3000
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 8
+          failureThreshold: 30
+        livenessProbe:
+          httpGet:
+            path: /signin
+            port: 3000
+          periodSeconds: 20
+          timeoutSeconds: 8
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /signin
+            port: 3000
+          periodSeconds: 15
+          timeoutSeconds: 8
+          failureThreshold: 3
+      volumes:
+      - name: storage
+        hostPath:
+          path: /data/openarchiver/storage
+      - name: proton-cert
+        hostPath:
+          path: /data/openarchiver
+          type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: open-archiver
+  namespace: apps
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: open-archiver
+  ports:
+  - name: frontend
+    port: 3000
+    targetPort: frontend
+  - name: backend
+    port: 4000
+    targetPort: backend

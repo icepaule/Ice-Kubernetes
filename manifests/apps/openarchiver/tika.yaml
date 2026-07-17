@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oa-tika
+  namespace: apps
+  labels:
+    app.kubernetes.io/name: oa-tika
+    app.kubernetes.io/part-of: openarchiver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: oa-tika
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: oa-tika
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: nuc-ha
+      enableServiceLinks: false
+      containers:
+      - name: tika
+        image: apache/tika:3.2.2.0-full
+        ports:
+        - containerPort: 9998
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oa-tika
+  namespace: apps
+spec:
+  selector:
+    app.kubernetes.io/name: oa-tika
+  ports:
+  - port: 9998
