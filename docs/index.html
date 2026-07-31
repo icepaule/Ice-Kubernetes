@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ice-Kubernetes &mdash; K3s Homelab GitOps</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default'});</script>
+<style>
+:root { --primary:#1a56db; --primary-light:#e8effc; --bg:#f8fafc; --card:#ffffff; --text:#1e293b; --text-muted:#64748b; --border:#e2e8f0; --accent:#059669; --accent-light:#ecfdf5; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+.container { max-width:1100px; margin:0 auto; padding:0 24px; }
+header { background:linear-gradient(135deg,#1e3a5f 0%,#1a56db 100%); color:white; padding:60px 0 50px; }
+header h1 { font-size:2.5rem; margin-bottom:12px; display:flex; align-items:center; gap:16px; }
+header .icon { width:48px; height:48px; flex-shrink:0; }
+header p { font-size:1.15rem; opacity:0.9; max-width:700px; }
+.badge { display:inline-block; background:rgba(255,255,255,0.2); padding:4px 12px; border-radius:20px; font-size:0.85rem; margin-top:16px; }
+nav { background:var(--card); border-bottom:1px solid var(--border); position:sticky; top:0; box-shadow:0 1px 3px rgba(0,0,0,0.05); }
+nav .container { display:flex; overflow-x:auto; }
+nav a { padding:14px 20px; text-decoration:none; color:var(--text-muted); font-size:0.9rem; font-weight:500; white-space:nowrap; border-bottom:2px solid transparent; }
+nav a:hover { color:var(--primary); border-bottom-color:var(--primary); }
+section { padding:50px 0; }
+section:nth-child(even) { background:var(--card); }
+h2 { font-size:1.8rem; margin-bottom:24px; }
+h3 { font-size:1.2rem; margin:20px 0 12px; }
+.card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:20px; margin-top:20px; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+section:nth-child(even) .card { background:var(--bg); }
+.card h3 { margin-top:0; color:var(--primary); }
+.card p { color:var(--text-muted); font-size:0.95rem; }
+table { width:100%; border-collapse:collapse; margin:16px 0; font-size:0.9rem; }
+th, td { padding:10px 14px; text-align:left; border-bottom:1px solid var(--border); }
+th { background:var(--primary-light); color:var(--primary); font-weight:600; }
+.mermaid-wrap { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; margin:24px 0; overflow-x:auto; }
+section:nth-child(even) .mermaid-wrap { background:var(--bg); }
+pre:not(.mermaid) { background:#1e293b; color:#e2e8f0; padding:20px; border-radius:10px; overflow-x:auto; font-size:0.85rem; }
+code { background:var(--primary-light); padding:2px 6px; border-radius:4px; font-size:0.85rem; }
+pre code { background:none; padding:0; }
+.tech-grid { display:flex; flex-wrap:wrap; gap:12px; margin:20px 0; }
+.tech-item { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:10px 18px; font-size:0.9rem; font-weight:500; }
+section:nth-child(even) .tech-item { background:var(--bg); }
+footer { background:#1e293b; color:#94a3b8; padding:40px 0; text-align:center; font-size:0.85rem; }
+footer a { color:#60a5fa; text-decoration:none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <h1>
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 18a4 4 0 0 0 .5-8 5 5 0 0 0-9.6-1.5A4.5 4.5 0 0 0 6 18h11.5z"/></svg>
+      Ice-Kubernetes
+    </h1>
+    <p>GitOps-Repository fuer einen selbst betriebenen K3s-Homelab-Cluster &mdash; Migration von Docker-Compose-Stacks zu Kubernetes, automatisch ausgerollt via ArgoCD.</p>
+    <span class="badge">K3s &middot; ArgoCD &middot; Kustomize &middot; Prometheus/Grafana</span>
+  </div>
+</header>
+
+<nav>
+  <div class="container">
+    <a href="#ueberblick">Ueberblick</a>
+    <a href="#architektur">Architektur</a>
+    <a href="#stack">Tech-Stack</a>
+    <a href="#quickstart">Quickstart</a>
+  </div>
+</nav>
+
+<section id="ueberblick">
+  <div class="container">
+    <h2>Ueberblick</h2>
+    <p>Ice-Kubernetes ist das GitOps-Repository fuer einen privat betriebenen K3s-Cluster: Statt einzelne Docker-Compose-Stacks manuell auf verschiedenen Hosts zu pflegen, werden Anwendungen schrittweise als Kubernetes-Manifeste hierher migriert und von ArgoCD automatisch auf den Cluster ausgerollt. Ein Server-Node uebernimmt Control-Plane und Kern-Plattform, ein Agent-Node mit GPU bedient rechenintensive Workloads, waehrend ausgewaehlte Legacy-Docker-Hosts nur noch ueberwacht statt migriert werden.</p>
+    <div class="card-grid">
+      <div class="card">
+        <h3>GitOps mit ArgoCD</h3>
+        <p>App-of-Apps-Pattern: ein Wurzel-Application-Objekt verwaltet alle Workload-Applications. Ein Push auf den Hauptbranch wird automatisch auf den Cluster synchronisiert.</p>
+      </div>
+      <div class="card">
+        <h3>Modulare App-Manifeste</h3>
+        <p>Jeder Workload liegt als eigenes Kustomize-Verzeichnis unter <code>manifests/apps/</code> &mdash; von einfachen Single-Container-Diensten bis zu mehrteiligen Stacks mit eigener Datenbank und Queue.</p>
+      </div>
+      <div class="card">
+        <h3>Monitoring-Stack</h3>
+        <p>kube-prometheus-stack ueberwacht Cluster-Nodes und Pods automatisch; externe Docker-Hosts werden per node-exporter/cAdvisor zusaetzlich eingebunden.</p>
+      </div>
+      <div class="card">
+        <h3>Schrittweise Migration</h3>
+        <p>Bestehende Compose-Stacks werden priorisiert nach Komplexitaet migriert; Dienste, die eng an ein bestehendes Host-System gebunden sind, bleiben bewusst dort.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="architektur">
+  <div class="container">
+    <h2>Architektur</h2>
+    <div class="mermaid-wrap">
+      <pre class="mermaid">
+flowchart TD
+    Dev["Entwicklung / Config-Aenderung"] -->|git push| Repo["GitHub Repo<br/>Ice-Kubernetes"]
+    Repo -->|beobachtet Manifeste| ArgoApp["ArgoCD<br/>App-of-Apps Application"]
+    ArgoApp -->|erzeugt| Child1["Application: stock-analyzer"]
+    ArgoApp -->|erzeugt| Child2["Application: searxng"]
+    ArgoApp -->|erzeugt| Child3["Application: network-monitoring"]
+    ArgoApp -->|erzeugt| Child4["Application: ...weitere Apps"]
+    Child1 -->|auto-sync| Cluster
+    Child2 -->|auto-sync| Cluster
+    Child3 -->|auto-sync| Cluster
+    Child4 -->|auto-sync| Cluster
+
+    subgraph Cluster["K3s-Cluster"]
+      Server["Server-Node<br/>Control-Plane + Core-Platform<br/>(MetalLB, Ingress, ArgoCD)"]
+      Agent["Agent-Node<br/>GPU-Worker<br/>(ML/Inference-Workloads)"]
+      Namespaces["Namespace: apps<br/>Workload-Pods"]
+      Server --- Namespaces
+      Agent --- Namespaces
+    end
+
+    Namespaces --> Mon["Monitoring-Stack<br/>Prometheus / Grafana / Loki"]
+    Mon -.->|scrape via node-exporter| External["Externe Docker-Hosts<br/>(nur ueberwacht, nicht migriert)"]
+    Namespaces --> Storage[("NFS-Storage<br/>PersistentVolumes")]
+      </pre>
+    </div>
+    <p>Aenderungen an Kubernetes-Manifesten werden ausschliesslich ueber Git eingecheckt. ArgoCD beobachtet dieses Repository im App-of-Apps-Muster und rollt jede App als eigene ArgoCD-Application automatisch auf den K3s-Cluster aus. Der Server-Node traegt Control-Plane und Kern-Plattform (MetalLB fuer LoadBalancer-Services, Ingress, ArgoCD selbst), ein separater Agent-Node mit GPU uebernimmt rechenintensive Workloads. Persistenter Speicher kommt ueber einen NFS-Provisioner, die Beobachtung von Cluster und externen Docker-Hosts laeuft zentral ueber den Monitoring-Stack.</p>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="container">
+    <h2>Tech-Stack</h2>
+    <div class="tech-grid">
+      <div class="tech-item">K3s</div>
+      <div class="tech-item">ArgoCD</div>
+      <div class="tech-item">Kustomize</div>
+      <div class="tech-item">Helm</div>
+      <div class="tech-item">MetalLB</div>
+      <div class="tech-item">Traefik</div>
+      <div class="tech-item">Prometheus</div>
+      <div class="tech-item">Grafana</div>
+      <div class="tech-item">Loki + Alloy</div>
+      <div class="tech-item">NFS Subdir Provisioner</div>
+      <div class="tech-item">smokeping / iperf3-exporter</div>
+    </div>
+    <h3>Enthaltene App-Workloads (Auszug)</h3>
+    <table>
+      <tr><th>Stack</th><th>Zweck</th></tr>
+      <tr><td>Stock Analyzer</td><td>Einfacher Single-Container-Dienst</td></tr>
+      <tr><td>SearXNG</td><td>Selbst gehostete Meta-Suchmaschine</td></tr>
+      <tr><td>Network Monitoring</td><td>Smokeping + iperf3 fuer Latenz-/Durchsatz-Trending</td></tr>
+      <tr><td>Open Archiver</td><td>Mehrteiliger Mail-Archivierungs-Stack (DB, Suche, Queue, Textextraktion)</td></tr>
+      <tr><td>Leak Monitoring</td><td>Eigenes Image aus interner Container-Registry</td></tr>
+    </table>
+  </div>
+</section>
+
+<section id="quickstart">
+  <div class="container">
+    <h2>Quickstart</h2>
+    <p>Ausfuehrliche Schritt-fuer-Schritt-Anleitungen liegen unter <code>docs/01-prerequisites.md</code> bis <code>docs/08-admin-guide.md</code> im Repository. Grober Ablauf:</p>
+    <pre><code>git clone https://github.com/icepaule/Ice-Kubernetes.git
+cd Ice-Kubernetes
+
+# Core-Plattform nach K3s-Setup ausrollen
+kubectl apply -f manifests/namespaces.yaml
+helm install metallb metallb/metallb -n metallb-system --create-namespace \
+  -f helm-values/metallb-values.yaml
+
+# GitOps aktivieren (App-of-Apps)
+kubectl apply -f manifests/core/argocd/app-of-apps.yaml</code></pre>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p>
+      <a href="https://github.com/icepaule/Ice-Kubernetes">GitHub Repository</a>
+      &nbsp;&middot;&nbsp;
+      <a href="https://icepaule.github.io/">icepaule.github.io</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
